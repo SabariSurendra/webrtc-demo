@@ -9,13 +9,14 @@ window.addEventListener('load', async () => {
 
     // This is needed by Safari to gather candidates even for data-channel-only peer connections :-( https://stackoverflow.com/a/53914556/2715716
     await navigator.mediaDevices.getUserMedia({ video: true });
+
     const sdp = atob(location.search.substring('?'.length));
     await peerConnection.setRemoteDescription({ sdp, type: 'offer' });
     await peerConnection.setLocalDescription(await peerConnection.createAnswer());
     peerConnection.addEventListener('icecandidate', event => render(peerConnection.localDescription.sdp, event.candidate === null));
     peerConnection.addEventListener('datachannel', event => {
       streamVideo.remove();
-      codeSvg.remove();
+      // codeSvg.remove();
       event.channel.addEventListener('open', () => {
         document.body.append(document.createTextNode('Answerer connected. '));
         event.channel.send('hi, this is answerer');
@@ -51,7 +52,7 @@ window.addEventListener('load', async () => {
           if (code && code.data) {
             mediaStream.getTracks().forEach(track => track.stop());
             streamVideo.remove();
-            codeSvg.remove();
+            // codeSvg.remove();
 
             const sdp = code.data;
             await peerConnection.setRemoteDescription({ sdp, type: 'answer' });
