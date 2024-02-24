@@ -5,6 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+    integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"
+    integrity="sha512-NFUcDlm4V+a2sjPX7gREIXgCSFja9cHtKPOL1zj6QhnE0vcY695MODehqkaGYTLyL2wxe/wtr4Z49SvqXq12UQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <style>
   * {
@@ -31,6 +37,8 @@
 </style>
 
 <body>
+  <div id="offerQR"></div> <!-- Placeholder for offer QR code -->
+  <div id="answerQR"></div> <!-- Placeholder for answer QR code -->
   <div class="video-box">
     <video id="video" autoplay="true" muted> </video>
     <video id="remote" autoplay="true"> </video>
@@ -157,6 +165,7 @@
       await peerConn.setLocalDescription(offer);
       // console.log("offer : ", offer);
       document.getElementById("localSDP").value = JSON.stringify(offer);
+      generateQRCode("offerQR", JSON.stringify(offer));
     }
 
     let createAnswer = async () => {
@@ -169,7 +178,7 @@
       await peerConn.setRemoteDescription(offer);
       let answer = await peerConn.createAnswer();
       await peerConn.setLocalDescription(answer)
-
+      generateQRCode("answerQR", JSON.stringify(answer));
     }
 
     let addAnswer = async () => {
@@ -179,6 +188,20 @@
       if (!peerConn.currentRemoteDescription) {
         peerConn.setRemoteDescription(answer);
       }
+    }
+
+    function generateQRCode(elementId, text) {
+      var qrCodeElement = document.getElementById(elementId);
+      qrCodeElement.innerHTML = ""; // Clear previous QR code, if any
+      // var qrCode = new QRCode(qrCodeElement, {
+      //   text: text,
+      //   width: 128,
+      //   height: 128,
+      //   colorDark: "#000000",
+      //   colorLight: "#ffffff",
+      // });
+      $('#' + elementId).qrcode(text);
+      // var qr = new QRious({ element: document.getElementById("qrcode"), value: "https://webisora.com" });
     }
 
     document.getElementById("localOffer").addEventListener("click", () => { createOffer() })
