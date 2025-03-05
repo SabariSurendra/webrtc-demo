@@ -8,9 +8,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
     integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <div id="qrcode"></div>
+
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"
     integrity="sha512-NFUcDlm4V+a2sjPX7gREIXgCSFja9cHtKPOL1zj6QhnE0vcY695MODehqkaGYTLyL2wxe/wtr4Z49SvqXq12UQ=="
-    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
 </head>
 <style>
   * {
@@ -37,8 +40,8 @@
 </style>
 
 <body>
-  <div id="offerQR"></div> <!-- Placeholder for offer QR code -->
-  <div id="answerQR"></div> <!-- Placeholder for answer QR code -->
+  <div class="users">
+  </div>
   <div class="video-box">
     <video id="video" autoplay="true" muted> </video>
     <video id="remote" autoplay="true"> </video>
@@ -52,164 +55,214 @@
       <option value=""></option>
     </select>
   </div>
-  <button id="localOffer">create offer</button>
+  <!-- <button id="localOffer">create offer</button>
   <input type="text" value="" id="localSDP">
   <button id="answerOffer">create answer</button>
   <input type="text" value="" id="answer-sdp">
-  <button id="addAnswer">Add answwer</button>
+  <button id="addAnswer">Add answwer</button> -->
   <script defer>
+    let userName = localStorage.getItem("userName")
+    let users = []
 
-    //
-    let localStream;
-    let remoteStream = new MediaStream();
-    let servers = {
-      iceServers: [
-        {
-          // urls: ['stun:stun1.1.google.com:19302', 'stun:stun2.1.google.com:19302']
-          url: 'turn:numb.viagenie.ca',
-          credential: 'muazkh',
-          username: 'webrtc@live.com'
+    if (!userName) {
+      let person = prompt("Please enter your name", "Unknown user");
+      if (person) {
+        localStorage.setItem("userName", person)
+        window.location.reload()
+      }
+    } else {
+
+      const handleMessage = (message) => {
+
+        const data = JSON.parse(message?.data || {})
+        const { type, user, sdp = null } = data
+        if (user == userName) return;
+        console.log(`message received ${message?.data}`)
+        users.push(data)
+        generateUsers(users)
+        if (type == "offer") {
+          createAnswer(sdp)
         }
-      ]
-    }
-    let peerConn = new RTCPeerConnection(servers);
-
-
-    // 
-
-    var videoElement = document.getElementById("video");
-    var audioSelect = document.querySelector('select#audioSource');
-    var videoSelect = document.querySelector('select#videoSource');
-
-    audioSelect.onchange = getStream;
-    videoSelect.onchange = getStream;
-
-    getStream().then(getDevices).then(gotDevices);
-
-    function getDevices() {
-      // AFAICT in Safari this only gets default devices until gUM is called :/
-      return navigator.mediaDevices.enumerateDevices();
-    }
-
-    function gotDevices(deviceInfos) {
-      window.deviceInfos = deviceInfos; // make available to console
-      console.log('Available input and output devices:', deviceInfos);
-      for (const deviceInfo of deviceInfos) {
-        const option = document.createElement('option');
-        option.value = deviceInfo.deviceId;
-        if (deviceInfo.kind === 'audioinput') {
-          option.text = deviceInfo.label || `Microphone ${audioSelect.length + 1}`;
-          audioSelect.appendChild(option);
-        } else if (deviceInfo.kind === 'videoinput') {
-          option.text = deviceInfo.label || `Camera ${videoSelect.length + 1}`;
-          videoSelect.appendChild(option);
+        if (type == "answer") {
+          debugger
+          if (confirm(`${user} wants to connect with you! \n Do you want to accept it?`)) {
+            addAnswer(sdp)
+          } else {
+            ws.send(JSON.stringify({ type: "response", user: userName, toUser: user }))
+          }
+        }
+        if (type == "response") {
+          alert(`${user} denied your request!`)
         }
       }
-    }
 
-    function getStream() {
-      if (window.stream) {
-        window.stream.getTracks().forEach(track => {
-          track.stop();
+      const ws = new WebSocket('wss://overjoyed-substantial-passenger.glitch.me/')
+      ws.onopen = async () => {
+        console.log('ws opened on browser')
+        const offer = await createOffer()
+        ws.send(JSON.stringify({ type: "offer", user: userName, sdp: offer }))
+      }
+
+      ws.onmessage = handleMessage
+
+      let localStream;
+      let remoteStream = new MediaStream();
+      let servers = {
+        iceServers: [
+          {
+            // urls: ['stun:stun1.1.google.com:19302', 'stun:stun2.1.google.com:19302']
+            url: 'turn:numb.viagenie.ca',
+            credential: 'muazkh',
+            username: 'webrtc@live.com'
+          }
+        ]
+      }
+      let peerConn = new RTCPeerConnection(servers);
+
+
+      // 
+
+      var videoElement = document.getElementById("video");
+      var audioSelect = document.querySelector('select#audioSource');
+      var videoSelect = document.querySelector('select#videoSource');
+
+      audioSelect.onchange = getStream;
+      videoSelect.onchange = getStream;
+
+      getStream().then(getDevices).then(gotDevices);
+
+      function getDevices() {
+        // AFAICT in Safari this only gets default devices until gUM is called :/
+        return navigator.mediaDevices.enumerateDevices();
+      }
+
+      function gotDevices(deviceInfos) {
+        window.deviceInfos = deviceInfos; // make available to console
+        console.log('Available input and output devices:', deviceInfos);
+        for (const deviceInfo of deviceInfos) {
+          const option = document.createElement('option');
+          option.value = deviceInfo.deviceId;
+          if (deviceInfo.kind === 'audioinput') {
+            option.text = deviceInfo.label || `Microphone ${audioSelect.length + 1}`;
+            audioSelect.appendChild(option);
+          } else if (deviceInfo.kind === 'videoinput') {
+            option.text = deviceInfo.label || `Camera ${videoSelect.length + 1}`;
+            videoSelect.appendChild(option);
+          }
+        }
+      }
+
+      function getStream() {
+        if (window.stream) {
+          window.stream.getTracks().forEach(track => {
+            track.stop();
+          });
+        }
+        const audioSource = audioSelect.value;
+        const videoSource = videoSelect.value;
+        const constraints = {
+          // audio: true, video: true
+          audio: { deviceId: audioSource ? { exact: audioSource } : undefined },
+          video: { deviceId: videoSource ? { exact: videoSource } : undefined }
+        };
+        console.log("constraints : ", constraints);
+        localStream = navigator.mediaDevices.getUserMedia(constraints);
+        return navigator.mediaDevices.getUserMedia(constraints).
+          then(gotStream).catch(handleError);
+      }
+
+      function gotStream(stream) {
+        window.stream = stream; // make stream available to console
+        localStream = stream;
+        audioSelect.selectedIndex = [...audioSelect.options].
+          findIndex(option => option.text === stream.getAudioTracks()[0].label);
+        videoSelect.selectedIndex = [...videoSelect.options].
+          findIndex(option => option.text === stream.getVideoTracks()[0].label);
+        videoElement.srcObject = stream;
+      }
+
+      function handleError(error) {
+        console.log('Error: ', error);
+      }
+
+      const createPeerConn = async (type) => {
+        document.getElementById("remote").srcObject = remoteStream;
+        // 
+        localStream.getTracks().forEach((track) => {
+          peerConn.addTrack(track, localStream);
+        })
+        peerConn.ontrack = async (event) => {
+          event.streams[0].getTracks().forEach((track) => {
+            remoteStream.addTrack(track);
+          })
+        }
+
+        peerConn.onicecandidate = async (event) => {
+          // console.log(event, "ice candidate : ", event.candidate);
+          if (event.candidate) {
+            // document.getElementById(type).value = JSON.stringify(peerConn.localDescription);
+          }
+        }
+
+      }
+
+      const createOffer = async () => {
+        createPeerConn("localSDP");
+        let offer = await peerConn.createOffer();
+        await peerConn.setLocalDescription(offer);
+        return offer
+      }
+
+      const createAnswer = async (offer) => {
+        if (!offer) return alert("Retrieve offer from peer...");
+        createPeerConn("answer-sdp");
+
+        // let offer = document.getElementById("localSDP").value;
+        // offer = JSON.parse(offer);
+        await peerConn.setRemoteDescription(offer);
+        let answer = await peerConn.createAnswer();
+        await peerConn.setLocalDescription(answer)
+        return answer
+        // generateQRCode("answerQR", JSON.stringify(answer));
+      }
+
+      const addAnswer = async (answer) => {
+        // let answer = document.getElementById("answer-sdp").value;
+        if (!answer) return alert("Retrieve answer from peer first...")
+        if (!peerConn.currentRemoteDescription) {
+          peerConn.setRemoteDescription(answer);
+        }
+      }
+
+      function generateQRCode(elementId, text) {
+        var qrCodeElement = document.getElementById(elementId);
+        const base64Data = btoa(text);
+        qrCodeElement.innerHTML = ""; // Clear previous QR code, if any
+        QRCode.toCanvas(document.getElementById(elementId), base64Data, function (error) {
+          if (error) console.error("qr error ", error);
+          console.log('QR code generated!');
         });
       }
-      const audioSource = audioSelect.value;
-      const videoSource = videoSelect.value;
-      const constraints = {
-        // audio: true, video: true
-        audio: { deviceId: audioSource ? { exact: audioSource } : undefined },
-        video: { deviceId: videoSource ? { exact: videoSource } : undefined }
-      };
-      console.log("constraints : ", constraints);
-      // localStream = navigator.mediaDevices.getUserMedia(constraints);
-      return navigator.mediaDevices.getUserMedia(constraints).
-        then(gotStream).catch(handleError);
-    }
 
-    function gotStream(stream) {
-      window.stream = stream; // make stream available to console
-      localStream = stream;
-      audioSelect.selectedIndex = [...audioSelect.options].
-        findIndex(option => option.text === stream.getAudioTracks()[0].label);
-      videoSelect.selectedIndex = [...videoSelect.options].
-        findIndex(option => option.text === stream.getVideoTracks()[0].label);
-      videoElement.srcObject = stream;
-    }
+      const generateUsers = (newUsers = []) => {
+        const usersContainer = document.querySelector(".users")
+        usersContainer.innerHTML = ""
+        newUsers.map((data) => {
 
-    function handleError(error) {
-      console.log('Error: ', error);
-    }
+          const { type, user, sdp = null } = data
+          debugger
+          const button = document.createElement("button")
+          button.onclick = async () => {
+            const answer = await createAnswer(sdp)
+            ws.send(JSON.stringify({ type: "answer", user: userName, sdp: answer }))
+          }
+          button.textContent = `Connect with ${user}`
+          usersContainer.appendChild(button)
 
-    let createPeerConn = async (type) => {
-      document.getElementById("remote").srcObject = remoteStream;
-      // 
-      localStream.getTracks().forEach((track) => {
-        peerConn.addTrack(track, localStream);
-      })
-      peerConn.ontrack = async (event) => {
-        event.streams[0].getTracks().forEach((track) => {
-          remoteStream.addTrack(track);
         })
       }
-
-      peerConn.onicecandidate = async (event) => {
-        console.log(event, "ice candidate : ", event.candidate);
-        if (event.candidate) {
-          document.getElementById(type).value = JSON.stringify(peerConn.localDescription);
-        }
-      }
-
     }
 
-    let createOffer = async () => {
-      createPeerConn("localSDP");
-      // 
-      let offer = await peerConn.createOffer();
-      await peerConn.setLocalDescription(offer);
-      // console.log("offer : ", offer);
-      document.getElementById("localSDP").value = JSON.stringify(offer);
-      generateQRCode("offerQR", JSON.stringify(offer));
-    }
-
-    let createAnswer = async () => {
-      createPeerConn("answer-sdp");
-
-      let offer = document.getElementById("localSDP").value;
-      if (!offer) return alert("Retrieve offer from peer...");
-
-      offer = JSON.parse(offer);
-      await peerConn.setRemoteDescription(offer);
-      let answer = await peerConn.createAnswer();
-      await peerConn.setLocalDescription(answer)
-      generateQRCode("answerQR", JSON.stringify(answer));
-    }
-
-    let addAnswer = async () => {
-      let answer = document.getElementById("answer-sdp").value;
-      if (!answer) return alert("Retrieve answer from peer first...")
-      answer = JSON.parse(answer);
-      if (!peerConn.currentRemoteDescription) {
-        peerConn.setRemoteDescription(answer);
-      }
-    }
-
-    function generateQRCode(elementId, text) {
-      var qrCodeElement = document.getElementById(elementId);
-      qrCodeElement.innerHTML = ""; // Clear previous QR code, if any
-      // var qrCode = new QRCode(qrCodeElement, {
-      //   text: text,
-      //   width: 128,
-      //   height: 128,
-      //   colorDark: "#000000",
-      //   colorLight: "#ffffff",
-      // });
-      $('#' + elementId).qrcode(text);
-      // var qr = new QRious({ element: document.getElementById("qrcode"), value: "https://webisora.com" });
-    }
-
-    document.getElementById("localOffer").addEventListener("click", () => { createOffer() })
-    document.getElementById("answerOffer").addEventListener("click", () => { createAnswer() })
-    document.getElementById("addAnswer").addEventListener("click", () => { addAnswer() })
   </script>
 </body>
 

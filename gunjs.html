@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gun.js Example (No Server)</title>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+</head>
+
+<body>
+    <h1>Gun.js Real-time Syncing (No Server)</h1>
+    <input type="text" id="nameInput" placeholder="Enter your name">
+    <button onclick="setName()">Set Name</button>
+    <p id="output"></p>
+
+    <script>
+        // Initialize Gun directly in the browser (no server needed)
+        const gun = Gun(['wss://overjoyed-substantial-passenger.glitch.me/']);  // Using the public relay server
+
+        const person = gun.get('person');  // Reference to the "person" node
+
+        // Display name in real-time
+        person.get('name').on(function (name) {
+            document.getElementById('output').innerText = "Name: " + name;
+        });
+
+        person.on(function (data) {
+            console.log("new joinee : ", data);
+        });
+
+        // Set the name when button is clicked
+        function setName() {
+            const name = document.getElementById('nameInput').value;
+            person.put({ name });  // Set the name in the Gun graph
+        }
+    </script>
+</body>
+
+</html>
