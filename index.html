@@ -152,7 +152,7 @@
         }
       }
 
-      function getStream() {
+      async function getStream() {
         if (window.stream) {
           window.stream.getTracks().forEach(track => {
             track.stop();
@@ -166,7 +166,7 @@
           video: { deviceId: videoSource ? { exact: videoSource } : undefined }
         };
         console.log("constraints : ", constraints);
-        localStream = navigator.mediaDevices.getUserMedia(constraints);
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
         return navigator.mediaDevices.getUserMedia(constraints).
           then(gotStream).catch(handleError);
       }
